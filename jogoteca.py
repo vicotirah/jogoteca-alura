@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request  # type: ignore
+from flask import Flask, render_template, request, redirect  # type: ignore
 
 class Jogo:
     def __init__(self, nome, categoria, console):
@@ -34,6 +34,6 @@ def criar():
     console = request.form['console']
     jogo = Jogo(nome, categoria, console)
     lista.append(jogo)
-    return render_template('index.html', titulo='Jogos', jogos = lista)
+    return redirect('/')
 
 app.run(debug=True)
