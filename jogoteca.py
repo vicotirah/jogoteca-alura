@@ -1,37 +1,48 @@
 from flask import Flask, render_template, request, redirect, session, flash, url_for  # type: ignore
-
-class Jogo:
-    def __init__(self, nome, categoria, console):
-        self._nome = nome
-        self._categoria = categoria
-        self._console = console
-
-class Usuario:
-    def __init__ (self, nome, nickname, senha):
-        self._nome = nome
-        self._nickname = nickname
-        self._senha = senha
-
-
-
-jogo1 = Jogo('Tetris', 'Puzzle', 'Atari')
-jogo2 = Jogo('God of War', 'Aventura', 'PS2')
-jogo3 = Jogo('Mortal Kombat', 'Luta', 'PS2')
-lista = [jogo1, jogo2, jogo3]
-
-usuario1 = Usuario('Bruno Divino', 'BD', 'alohomora')
-usuario2 = Usuario("Camila Ferreira", "Mila", "paozinho")
-usuario3 = Usuario("Guilherme Louro", "Cake", "python")
-
-usuarios = { usuario1._nickname : usuario1, usuario2._nickname : usuario2, usuario3._nickname : usuario3}
-
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.secret_key = 'jogoteca'
 
+app.config['SQLALCHEMY_DATABASE_URI'] = \
+    '{SGBD}://{usuario}:{senha}@{servidor}/{database}'.format(
+    SGBD = 'mysql+mysqlconnector',
+    usuario = 'root',
+    senha = 'admin',
+    servidor = '127.0.0.1',
+    database = 'jogoteca'
+    )
+
+db = SQLAlchemy(app)
+
+
+class Jogos(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    nome = db.Column(db.String(50), nullable=False)
+    categoria = db.Column(db.String(40), nullable=False)
+    console = db.Column(db.String(20), nullable=False)
+    def __repr__(self):
+        return f'<Jogo {self.nome}>'
+
+class Usuarios(db.Model):
+    nickname = db.Column(db.String(8), primary_key=True)
+    nome = db.Column(db.String(20), nullable=False)
+    senha = db.Column(db.String(100), nullable=False)
+    def __repr__(self):
+        return f'<Usuário {self.nome}>'
+    
+# Usando o contexto da aplicação
+with app.app_context():
+    try:
+        db.create_all()  # Cria todas as tabelas definidas no modelo
+        print("Conexão com o banco de dados bem-sucedida!")
+    except Exception as e:
+        print(f"Erro ao conectar ao banco de dados: {e}")
+
 @app.route('/')
 def index():
-    return render_template('index.html', titulo='Jogos', jogos = lista)
+    lista = Jogos.query.order_by(Jogos.id)
+    return render_template('index.html', titulo='Jogos', jogos=lista)
 
 @app.route('/novo')
 def adicionar_jogo():
@@ -44,8 +55,17 @@ def criar():
     nome =request.form['nome']
     categoria =request.form['categoria']
     console = request.form['console']
-    jogo = Jogo(nome, categoria, console)
-    lista.append(jogo)
+    
+    jogo = Jogos.query.filter_by(nome=nome).first()
+
+    if jogo: #==True
+        flash('Jogo já listado!')
+        return redirect(url_for('index'))
+
+    novo_jogo = Jogos(nome=nome, categoria=categoria, console=console)
+    db.session.add(novo_jogo)
+    db.session.commit()
+
     return redirect(url_for('index'))
 
 @app.route('/login' )
@@ -55,11 +75,11 @@ def login():
 
 @app.route('/autenticar', methods=['POST',])
 def autenticar():
-    if request.form['usuario'] in usuarios:
-        usuario = usuarios[request.form['usuario']]
-        if request.form['senha'] == usuario._senha:
-            session['usuario_logado'] = usuario._nickname
-            flash(usuario._nickname + ' logado com sucesso!')
+    usuario = Usuarios.query.filter_by(nickname=request.form['usuario']).first()
+    if usuario: #==True
+        if request.form['senha'] == usuario.senha:
+            session['usuario_logado'] = usuario.nickname
+            flash(usuario.nickname + ' logado com sucesso!')
             proxima_pagina = request.form['proxima']
             return redirect(proxima_pagina)
     else:
