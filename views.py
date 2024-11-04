@@ -35,9 +35,11 @@ def criar():
 
     nome, categoria, console = formulario_valores(form)
     jogo = Jogos.query.filter_by(nome=nome).first()
+    
     if jogo: #==True
         flash('Jogo já listado!')
         return redirect(url_for('index'))
+    
     novo_jogo = Jogos(nome=nome, categoria=categoria, console=console)
 
     salvar_no_banco(novo_jogo)
@@ -85,7 +87,7 @@ def deletar_jogo(id):
 @app.route('/login' )
 def login():
     proxima = request.args.get('proxima')
-    form =FormularioUsuario
+    form = FormularioUsuario()
     return render_template('login.html', titulo='Faça seu login', proxima=proxima, form=form)
 
 @app.route('/autenticar', methods=['POST',])
