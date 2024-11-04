@@ -1,6 +1,7 @@
 from flask import render_template, request, redirect, session, flash, url_for, send_from_directory
 from models import Jogos, Usuarios
 from jogoteca import app, db
+from helpers import *
 
 
 # Usando o contexto da aplicação
@@ -10,21 +11,6 @@ with app.app_context():
         print("Conexão com o banco de dados bem-sucedida!")
     except Exception as e:
         print(f"Erro ao conectar ao banco de dados: {e}")
-
-def formulario_valores():
-    return (
-    request.form['nome'],
-    request.form['categoria'],
-    request.form['console']
-    )
-
-def salvar_no_banco(objeto):
-    db.session.add(objeto)
-    db.session.commit()
-
-def login_requerido(proxima_funcao):
-    if 'usuario_logado' not in session or session['usuario_logado'] is None:
-        return redirect(url_for('login', proxima=url_for(proxima_funcao, **request.view_args)))
 
 @app.route('/')
 def index():
@@ -48,11 +34,10 @@ def criar():
         flash('Jogo já listado!')
         return redirect(url_for('index'))
     novo_jogo = Jogos(nome=nome, categoria=categoria, console=console)
+
     salvar_no_banco(novo_jogo)
 
-    arquivo = request.files['arquivo']
-    upload_path = app.config['UPLOAD_PATH']
-    arquivo.save(f'{upload_path}/capa{novo_jogo.id}.jpg')
+    imagem_form(novo_jogo)
 
     return redirect(url_for('index'))
 
@@ -63,13 +48,18 @@ def editar_jogo(id):
         return redirecionar
     jogo=Jogos.query.filter_by(id=id).first()
 
-    return render_template('editar_jogo.html', titulo='Editar Jogo', jogo=jogo)
+    capa_jogo = recupera_imagem(id)
+
+    return render_template('editar_jogo.html', titulo='Editar Jogo', jogo=jogo, capa_jogo=capa_jogo)
 
 @app.route('/atualizar', methods=['POST',])
 def atualizar():
     jogo = Jogos.query.filter_by(id=request.form['id']).first()
     jogo.nome, jogo.categoria, jogo.console = formulario_valores()
     salvar_no_banco(jogo)
+
+    imagem_form(jogo)
+
     return redirect(url_for('index'))
 
 @app.route('/deletar/<int:id>')
@@ -111,3 +101,5 @@ def logout():
 @app.route('/uploads/<nome_arquivo>')
 def imagem(nome_arquivo):
     return  send_from_directory('uploads', nome_arquivo)
+
+
