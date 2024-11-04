@@ -1,6 +1,5 @@
 import os
 
-
 SECRET_KEY = 'jogoteca'
 
 SQLALCHEMY_DATABASE_URI = \

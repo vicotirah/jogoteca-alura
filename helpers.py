@@ -1,14 +1,32 @@
 from flask import request, redirect, session, url_for
 from jogoteca import app, db
 import os, time 
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField, PasswordField, validators
 
+class FormularioJogo(FlaskForm):
+    nome = StringField('Nome do Jogo', [validators.DataRequired(), validators.Length(min=1, max=50)])
+    categoria = StringField('Categoria', [validators.DataRequired(), validators.Length(min=1, max=40)])
+    console = StringField('Console', [validators.DataRequired(), validators.Length(min=1, max=20)])
+    salvar = SubmitField('Salvar')
 
-def formulario_valores():
+class FormularioUsuario(FlaskForm):
+    nickname = StringField('Nickname', [validators.DataRequired(), validators.Length(min=1, max=8)])
+    senha = PasswordField('Senha', [validators.DataRequired(), validators.Length(min=1, max=100)])
+    login = SubmitField('Login')
+
+def formulario_valores(form):
     return (
-    request.form['nome'],
-    request.form['categoria'],
-    request.form['console']
+    form.nome.data,
+    form.categoria.data,
+    form.console.data
     )
+
+def preencher_formulario(obj, form):
+    form.nome.data = obj.nome
+    form.categoria.data = obj.categoria
+    form.console.data = obj.console
+
 
 def salvar_no_banco(objeto):
     db.session.add(objeto)
@@ -42,4 +60,6 @@ def imagem_form(obj):
 
         return True
     return False
+
+
 

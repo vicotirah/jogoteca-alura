@@ -23,12 +23,17 @@ def adicionar_jogo():
     redirecionar = login_requerido('adicionar_jogo')
     if redirecionar:
         return redirecionar
-    
-    return render_template('novo_jogo.html', titulo='Novo Jogo')
+    form = FormularioJogo()
+    return render_template('novo_jogo.html', titulo='Novo Jogo', form=form)
 
 @app.route('/criar', methods=['POST',])
 def criar():
-    nome, categoria, console = formulario_valores()
+    form = FormularioJogo(request.form)
+
+    if form.validate_on_submit():
+        return redirect(url_for('adicionar_jogo'))
+
+    nome, categoria, console = formulario_valores(form)
     jogo = Jogos.query.filter_by(nome=nome).first()
     if jogo: #==True
         flash('Jogo já listado!')
@@ -48,17 +53,21 @@ def editar_jogo(id):
         return redirecionar
     jogo=Jogos.query.filter_by(id=id).first()
 
+    form = FormularioJogo()
+    preencher_formulario(jogo, form)
+
     capa_jogo = recupera_imagem(id)
 
-    return render_template('editar_jogo.html', titulo='Editar Jogo', jogo=jogo, capa_jogo=capa_jogo)
+    return render_template('editar_jogo.html', titulo='Editar Jogo', id=id, capa_jogo=capa_jogo, form=form)
 
-@app.route('/atualizar', methods=['POST',])
+@app.route('/atualizar', methods=['POST', ])
 def atualizar():
-    jogo = Jogos.query.filter_by(id=request.form['id']).first()
-    jogo.nome, jogo.categoria, jogo.console = formulario_valores()
-    salvar_no_banco(jogo)
-
-    imagem_form(jogo)
+    form = FormularioJogo(request.form)
+    if form.validate_on_submit():
+        jogo = Jogos.query.filter_by(id=request.form['id']).first()
+        jogo.nome, jogo.categoria, jogo.console = formulario_valores(form)
+        salvar_no_banco(jogo)
+        imagem_form(jogo)
 
     return redirect(url_for('index'))
 
@@ -74,16 +83,17 @@ def deletar_jogo(id):
     return redirect(url_for('index'))
 
 @app.route('/login' )
-
 def login():
     proxima = request.args.get('proxima')
-    return render_template('login.html', titulo='Faça seu login', proxima=proxima)
+    form =FormularioUsuario
+    return render_template('login.html', titulo='Faça seu login', proxima=proxima, form=form)
 
 @app.route('/autenticar', methods=['POST',])
 def autenticar():
-    usuario = Usuarios.query.filter_by(nickname=request.form['usuario']).first()
+    form = FormularioUsuario(request.form)
+    usuario = Usuarios.query.filter_by(nickname=form.nickname.data).first()
     if usuario: #==True
-        if request.form['senha'] == usuario.senha:
+        if form.senha.data == usuario.senha:
             session['usuario_logado'] = usuario.nickname
             flash(usuario.nickname + ' logado com sucesso!')
             proxima_pagina = request.form['proxima']
