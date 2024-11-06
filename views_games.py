@@ -1,7 +1,9 @@
-from flask import render_template, request, redirect, session, flash, url_for, send_from_directory
-from models import Jogos, Usuarios
+from flask import render_template, request, redirect, flash, url_for, send_from_directory, Blueprint
 from jogoteca import app, db
+from models import Jogos
 from helpers import *
+
+games_blueprint = Blueprint('games', __name__)
 
 
 # Usando o contexto da aplicação
@@ -26,27 +28,29 @@ def adicionar_jogo():
     form = FormularioJogo()
     return render_template('novo_jogo.html', titulo='Novo Jogo', form=form)
 
-@app.route('/criar', methods=['POST',])
+@app.route('/criar', methods=['POST'])
 def criar():
     form = FormularioJogo(request.form)
-
+    
     if form.validate_on_submit():
-        return redirect(url_for('adicionar_jogo'))
+        
+        nome, categoria, console = formulario_valores(form)
+        
+        jogo = Jogos.query.filter_by(nome=nome).first()
+        if jogo:
+            flash('Jogo já listado!')
+            return redirect(url_for('index'))
 
-    nome, categoria, console = formulario_valores(form)
-    jogo = Jogos.query.filter_by(nome=nome).first()
-    
-    if jogo: #==True
-        flash('Jogo já listado!')
+        novo_jogo = Jogos(nome=nome, categoria=categoria, console=console)
+        salvar_no_banco(novo_jogo)
+
+        imagem_form(novo_jogo)
+
+        flash('Jogo adicionado com sucesso!')
         return redirect(url_for('index'))
-    
-    novo_jogo = Jogos(nome=nome, categoria=categoria, console=console)
 
-    salvar_no_banco(novo_jogo)
-
-    imagem_form(novo_jogo)
-
-    return redirect(url_for('index'))
+    flash('Erro no envio do formulário!')
+    return redirect(url_for('adicionar_jogo'))
 
 @app.route('/editar/<int:id>')
 def editar_jogo(id):
@@ -80,34 +84,9 @@ def deletar_jogo(id):
         return redirecionar
     Jogos.query.filter_by(id=id).delete()
     db.session.commit()
+
     flash('Jogo deletado com sucesso')
 
-    return redirect(url_for('index'))
-
-@app.route('/login' )
-def login():
-    proxima = request.args.get('proxima')
-    form = FormularioUsuario()
-    return render_template('login.html', titulo='Faça seu login', proxima=proxima, form=form)
-
-@app.route('/autenticar', methods=['POST',])
-def autenticar():
-    form = FormularioUsuario(request.form)
-    usuario = Usuarios.query.filter_by(nickname=form.nickname.data).first()
-    if usuario: #==True
-        if form.senha.data == usuario.senha:
-            session['usuario_logado'] = usuario.nickname
-            flash(usuario.nickname + ' logado com sucesso!')
-            proxima_pagina = request.form['proxima']
-            return redirect(proxima_pagina)
-    else:
-        flash('Usuário não logado')
-        return redirect(url_for('login'))
-    
-@app.route('/logout')
-def logout():
-    session['usuario_logado'] = None
-    flash('Logout efetuado com sucesso') 
     return redirect(url_for('index'))
 
 @app.route('/uploads/<nome_arquivo>')
